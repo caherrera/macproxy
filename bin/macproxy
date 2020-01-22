@@ -42,10 +42,11 @@ function ctrl_c() {
     echo "Restaurando Configuraciones"
     for protocol in web secureweb; do
         echo $protocol
-        networksetup -set${protocol}proxystate off
+        networksetup -set${protocol}proxystate $networkservice off
     done
     
     echo "done"
+    exit 0
     
 }
 
@@ -53,9 +54,16 @@ function turn_on() {
    echo "Activando Proxy en mac"
    for protocol in web secureweb; do
       echo $protocol
-      networksetup -set${protocol}proxystate on
-      networksetup -set${protocol}proxy $networkservice $domain $port $authenticated $username $password
+      c1="networksetup -set${protocol}proxystate \"$networkservice\" on "
+      c2="networksetup -set${protocol}proxy \"$networkservice\" \"$domain\" \"$port\" \"$authenticated\" \"$username\" \"$password\""
       
+      if [ "$dry" == "1" ]; then 
+         echo "$c1" 
+         echo "$c2"
+      else
+         $c1
+         $c2
+      fi
    done
 }
 
@@ -66,11 +74,8 @@ cfg=$HOME/.proxy
 [ -f $cfg ] && set_config_vars $cfg        $cfg_profile "profile_"
 
 
-if [ "$profile_domain" != "" ]; then 
-   domain="$profile_domain"; 
-else 
-   domain="$cfg_domain"; 
-fi
+if [ "$profile_networkservice" != "" ]; then networkservice="$profile_networkservice"; else networkservice="$cfg_networkservice"; fi
+if [ "$profile_domain" != "" ]; then domain="$profile_domain"; else domain="$cfg_domain"; fi
 if [ "$profile_port" != "" ]; then port="$profile_port"; else port="$cfg_port"; fi
 if [ "$profile_authenticated" != "" ]; then authenticated="$profile_authenticated"; else authenticated="$cfg_authenticated"; fi
 if [ "$profile_username" != "" ]; then username="$profile_username"; else username="$cfg_username"; fi
@@ -81,6 +86,7 @@ if [ "$profile_password" != "" ]; then password="$profile_password"; else passwo
 
 function dump() {
 printf "\n%-60s %-40s %-40s %-40s" "var" "profile" "cfg" "result"
+printf "\n%-60s %-40s %-40s %-40s" "networkservice" "$profile_networkservice" "$cfg_networkservice" "$networkservice"
 printf "\n%-60s %-40s %-40s %-40s" "domain" "$profile_domain" "$cfg_domain" "$domain"
 printf "\n%-60s %-40s %-40s %-40s" "port" "$profile_port" "$cfg_port" "$port"
 printf "\n%-60s %-40s %-40s %-40s" "authenticated" "$profile_authenticated" "$cfg_authenticated" "$authenticated"
@@ -92,11 +98,12 @@ echo
 function new_profile() {
    echo "[general]"
    echo "profile=myproxy"
+   echo "networkservice=Wi-Fi"
    echo ""
    echo "[myproxy]"
    echo "domain=proxy.arrow.team"
    echo "port=8080"
-   echo "authenticated=1"
+   echo "authenticated=on"
    echo "username=MrTerriffic"
    echo "password=s05e01-ga"
 }
@@ -110,6 +117,7 @@ function do_usage(){
    echo
    echo "Options: "
         printf "\n   --new-profile)        Create a new proxy profile "
+        printf "\n   -n|--networkservice)  Ex: Wi-Fi"
         printf "\n   -d|--domain)          "
         printf "\n   -p|--port)            "
         printf "\n   -a|--authenticated)   "
@@ -154,5 +162,14 @@ while [ "$1" != "" ]; do
     shift
 done
 
-
-# turn_on
+while true; do
+   check_proxy=$(ping $domain -t1 -q 2>/dev/null)
+   if [ "$check_proxy" != "" ]; then
+      turn_on
+      sleep 60
+   else
+      echo "Proxy no disponible."
+      ctrl_c
+      
+   fi
+done
