@@ -1,0 +1,158 @@
+#!/bin/bash
+trap ctrl_c INT
+DIR="$( cd "$( dirname $(realpath ${BASH_SOURCE[0]} ))/.." && pwd )";
+
+function get_config_list()
+{
+   typeset config_file=$1
+
+   awk -F '[][]' '
+      NF==3 && $0 ~ /^\[.*\]/ { print $2 }
+   ' ${config_file}
+}
+
+# Function : set_config_vars config_file config [var_prefix]
+# Purpose  : Set variables (optionaly prefixed by var_prefix) from config in config file
+function set_config_vars()
+{
+   typeset config_file=$1
+   typeset config=$2
+   typeset var_prefix=$3
+   typeset config_vars
+
+   config_vars=$(
+        awk -F= -v Config="${config}" -v Prefix="${var_prefix}" '
+        BEGIN {
+           Config = toupper(Config);
+           patternConfig = "\\[" Config "]";
+        }
+        toupper($0)  ~ patternConfig,(/\[/ && toupper($0) !~ patternConfig)  {
+           if (/\[/ || NF <2) next;
+           sub(/^[[:space:]]*/, "");
+           sub(/[[:space:]]*=[[:space:]]/, "=");
+           print Prefix $0;
+        } ' ${config_file} )
+
+   eval "${config_vars}"
+}
+
+
+
+function ctrl_c() {
+    echo "Restaurando Configuraciones"
+    for protocol in web secureweb; do
+        echo $protocol
+        networksetup -set${protocol}proxystate off
+    done
+    
+    echo "done"
+    
+}
+
+function turn_on() {
+   echo "Activando Proxy en mac"
+   for protocol in web secureweb; do
+      echo $protocol
+      networksetup -set${protocol}proxystate on
+      networksetup -set${protocol}proxy $networkservice $domain $port $authenticated $username $password
+      
+   done
+}
+
+
+cfg=$HOME/.proxy
+# Function   : set_config_vars config_file config    [var_prefix]
+[ -f $cfg ] && set_config_vars $cfg        "general" "cfg_"
+[ -f $cfg ] && set_config_vars $cfg        $cfg_profile "profile_"
+
+
+if [ "$profile_domain" != "" ]; then 
+   domain="$profile_domain"; 
+else 
+   domain="$cfg_domain"; 
+fi
+if [ "$profile_port" != "" ]; then port="$profile_port"; else port="$cfg_port"; fi
+if [ "$profile_authenticated" != "" ]; then authenticated="$profile_authenticated"; else authenticated="$cfg_authenticated"; fi
+if [ "$profile_username" != "" ]; then username="$profile_username"; else username="$cfg_username"; fi
+if [ "$profile_password" != "" ]; then password="$profile_password"; else password="$cfg_password"; fi
+
+
+
+
+function dump() {
+printf "\n%-60s %-40s %-40s %-40s" "var" "profile" "cfg" "result"
+printf "\n%-60s %-40s %-40s %-40s" "domain" "$profile_domain" "$cfg_domain" "$domain"
+printf "\n%-60s %-40s %-40s %-40s" "port" "$profile_port" "$cfg_port" "$port"
+printf "\n%-60s %-40s %-40s %-40s" "authenticated" "$profile_authenticated" "$cfg_authenticated" "$authenticated"
+printf "\n%-60s %-40s %-40s %-40s" "username" "$profile_username" "$cfg_username" "$username"
+printf "\n%-60s %-40s %-40s %-40s" "password" "$profile_password" "$cfg_password" "$password"
+echo
+}
+
+function new_profile() {
+   echo "[general]"
+   echo "profile=myproxy"
+   echo ""
+   echo "[myproxy]"
+   echo "domain=proxy.arrow.team"
+   echo "port=8080"
+   echo "authenticated=1"
+   echo "username=MrTerriffic"
+   echo "password=s05e01-ga"
+}
+
+function do_usage(){
+   local a=$(basename ${BASH_SOURCE[0]})
+   echo 
+   echo "Sintax of ${a} :"
+   echo
+   echo "$ ${a} [options]"
+   echo
+   echo "Options: "
+        printf "\n   --new-profile)        Create a new proxy profile "
+        printf "\n   -d|--domain)          "
+        printf "\n   -p|--port)            "
+        printf "\n   -a|--authenticated)   "
+        printf "\n   -u|--username)        "
+        printf "\n   -p|--password)        "
+        printf "\n   --dump)               Export \$HOME\.proxy config"
+        printf "\n   -q )                  quiet mode"
+        printf "\n   --dry-run )           simulate operations"
+        printf "\n   -h|--help )           show usage"
+      
+   echo
+   echo
+   echo "Example of \$HOME\.proxy file:"
+   echo
+   new_profile
+
+
+
+
+
+
+
+}
+
+
+
+
+while [ "$1" != "" ]; do
+    case $1 in
+        --new-profile)        [ ! -f $cfg ] && new_profile > $cfg || echo "Profile already exists" ;exit 0;;
+        -d|--domain)          shift;domain="$1";;          
+        -p|--port)            shift;port="$1";;
+        -a|--authenticated)   shift;authenticated="$1";;        
+        -u|--username)        shift;username="$1";;   
+        -p|--password)        shift;password="$1";;
+        --dump)               dump;exit 0;;           
+        -q )                  q="";;
+        --dry-run )           dry="1";;
+        -h|--help )           do_usage; exit 0;;
+        *) echo "ERROR: Argument $1"; do_usage; exit 1;;
+    esac
+    shift
+done
+
+
+# turn_on
