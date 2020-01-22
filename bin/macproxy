@@ -42,6 +42,7 @@ function ctrl_c() {
     echo "Restaurando Configuraciones"
     for protocol in web secureweb; do
         echo $protocol
+        networksetup -set${protocol}proxy $networkservice empty
         networksetup -set${protocol}proxystate $networkservice off
     done
     
@@ -54,15 +55,15 @@ function turn_on() {
    echo "Activando Proxy en mac"
    for protocol in web secureweb; do
       echo $protocol
-      c1="networksetup -set${protocol}proxystate \"$networkservice\" on "
-      c2="networksetup -set${protocol}proxy \"$networkservice\" \"$domain\" \"$port\" \"$authenticated\" \"$username\" \"$password\""
+      c2="networksetup -set${protocol}proxystate \"$networkservice\" on "
+      c1="networksetup -set${protocol}proxy \"$networkservice\" \"$domain\" \"$port\" \"$authenticated\" \"$username\" \"$password\""
       
       if [ "$dry" == "1" ]; then 
          echo "$c1" 
          echo "$c2"
       else
-         $c1
-         $c2
+         bash -c "$c1"
+         bash -c "$c2"
       fi
    done
 }
@@ -166,10 +167,13 @@ while true; do
    check_proxy=$(ping $domain -t1 -q 2>/dev/null)
    if [ "$check_proxy" != "" ]; then
       turn_on
+      echo
+      echo "Sleeping for 60 seconds"
+      echo
       sleep 60
    else
       echo "Proxy no disponible."
       ctrl_c
-      
+
    fi
 done
