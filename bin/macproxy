@@ -58,12 +58,20 @@ function turn_on() {
       c2="networksetup -set${protocol}proxystate \"$networkservice\" on "
       c1="networksetup -set${protocol}proxy \"$networkservice\" \"$domain\" \"$port\" \"$authenticated\" \"$username\" \"$password\""
       
+      proxybypassdomains=
+      for b in $bypass; do 
+         proxybypassdomains=" \"$b\""
+      done
+      c3="networksetup -setproxybypassdomains \"$networkservice\" $proxybypassdomains"
+      
       if [ "$dry" == "1" ]; then 
          echo "$c1" 
          echo "$c2"
+         echo "$c3"
       else
          bash -c "$c1"
          bash -c "$c2"
+         bash -c "$c3"
       fi
    done
 }
@@ -81,6 +89,7 @@ if [ "$profile_port" != "" ]; then port="$profile_port"; else port="$cfg_port"; 
 if [ "$profile_authenticated" != "" ]; then authenticated="$profile_authenticated"; else authenticated="$cfg_authenticated"; fi
 if [ "$profile_username" != "" ]; then username="$profile_username"; else username="$cfg_username"; fi
 if [ "$profile_password" != "" ]; then password="$profile_password"; else password="$cfg_password"; fi
+if [ "$profile_bypass" != "" ]; then bypass="$profile_bypass"; else bypass="$cfg_bypass"; fi
 
 
 
@@ -107,10 +116,12 @@ function new_profile() {
    echo "authenticated=on"
    echo "username=MrTerriffic"
    echo "password=s05e01-ga"
+   echo "bypass=pornhub.com,dc.com,marvel.com"
 }
 
 function do_usage(){
-   local a=$(basename ${BASH_SOURCE[0]})
+   local a
+   a=$(basename ${BASH_SOURCE[0]})
    echo 
    echo "Sintax of ${a} :"
    echo
@@ -136,24 +147,17 @@ function do_usage(){
    new_profile
 
 
-
-
-
-
-
 }
-
-
-
 
 while [ "$1" != "" ]; do
     case $1 in
         --new-profile)        [ ! -f $cfg ] && new_profile > $cfg || echo "Profile already exists" ;exit 0;;
         -d|--domain)          shift;domain="$1";;          
-        -p|--port)            shift;port="$1";;
+        -P|--port)            shift;port="$1";;
         -a|--authenticated)   shift;authenticated="$1";;        
         -u|--username)        shift;username="$1";;   
         -p|--password)        shift;password="$1";;
+        -b|--bypass)          shift;bypass="$bypass $1";;
         --dump)               dump;exit 0;;           
         -q )                  q="";;
         --dry-run )           dry="1";;
