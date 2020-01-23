@@ -60,7 +60,7 @@ function turn_on() {
       
       proxybypassdomains=
       for b in $bypass; do 
-         proxybypassdomains=" \"$b\""
+         proxybypassdomains="$proxybypassdomains \"$b\""
       done
       c3="networksetup -setproxybypassdomains \"$networkservice\" $proxybypassdomains"
       
